@@ -22,7 +22,7 @@ export default function UpdateProfileInformation({
         useForm({
             name: user.name,
             email: user.email,
-            phone: user.phone || '',
+            phone_number: user.phone_number || '',
             address: user.address || '',
             city: user.city || '',
             state: user.state || '',
@@ -133,20 +133,20 @@ export default function UpdateProfileInformation({
                         <InputError className="mt-2" message={errors.email} />
                     </div>
 
-                    {/* Phone */}
+                    {/* phone_number */}
                     <div>
-                        <InputLabel htmlFor="phone" value="Phone" />
+                        <InputLabel htmlFor="phone_number" value="phone_number" />
 
                         <TextInput
-                            id="phone"
+                            id="phone_number"
                             type="tel"
                             className="mt-1 block w-full"
-                            value={data.phone}
-                            onChange={(e) => setData('phone', e.target.value)}
+                            value={data.phone_number}
+                            onChange={(e) => setData('phone_number', e.target.value)}
                             autoComplete="tel"
                         />
 
-                        <InputError className="mt-2" message={errors.phone} />
+                        <InputError className="mt-2" message={errors.phone_number} />
                     </div>
 
                     {/* Address */}

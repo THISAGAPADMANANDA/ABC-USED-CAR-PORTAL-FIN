@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Enums\RolesEnum;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use App\Models\User;
 
 class RoleSeeder extends Seeder
 {
@@ -14,48 +14,68 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-
-        // Create roles if they don't exist
-        $adminRole = Role::firstOrCreate(['name' => RolesEnum::Admin->value]);
-        $userRole = Role::firstOrCreate(['name' => RolesEnum::User->value]);
+        // Create roles
+        $adminRole = Role::create(['name' => 'admin']);
+        $userRole = Role::create(['name' => 'user']);
 
         // Create permissions
         $permissions = [
-            // Car permissions
-            'view cars',
-            'create cars',
-            'edit cars',
-            'delete cars',
-            'approve cars',
-
-            // Appointment permissions
-            'create appointments',
-            'manage appointments',
-
-            // User permissions
-            'manage users',
-
-            // Transaction permissions
-            'create transactions',
-            'view transactions',
+            'view_cars',
+            'create_cars',
+            'edit_cars',
+            'delete_cars',
+            'view_bids',
+            'create_bids',
+            'edit_bids',
+            'delete_bids',
+            'view_appointments',
+            'create_appointments',
+            'edit_appointments',
+            'delete_appointments',
+            'view_transactions',
+            'create_transactions',
+            'edit_transactions',
+            'delete_transactions',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+            Permission::create(['name' => $permission]);
         }
 
-        // Assign all permissions to admin
-        $adminRole->syncPermissions(Permission::all());
+        // Assign all permissions to admin role
+        $adminRole->givePermissionTo($permissions);
 
-        // Assign specific permissions to user role
-        $userRole->syncPermissions([
-            'view cars',
-            'create cars',
-            'edit cars',
-            'delete cars',
-            'create appointments',
+        // Assign basic permissions to user role
+        $userRole->givePermissionTo([
+            'view_cars',
+            'create_bids',
+            'view_bids',
+            'create_appointments',
+            'view_appointments',
+            'view_transactions',
         ]);
+
+        // Assign admin role to admin users
+        $adminUsers = User::where('is_admin', true)->get();
+        foreach ($adminUsers as $user) {
+            $user->assignRole($adminRole);
+        }
+
+        // Assign user role to all other users
+        $regularUsers = User::where('is_admin', false)->get();
+        foreach ($regularUsers as $user) {
+            $user->assignRole($userRole);
+        }
+
+        // Create and assign role to the default user if it doesn't exist
+        $defaultUser = User::firstOrCreate(
+            ['email' => 'user@example.com'],
+            [
+                'name' => 'Default User',
+                'password' => bcrypt('password'),
+                'is_admin' => false,
+            ]
+        );
+        $defaultUser->assignRole($userRole);
     }
 }

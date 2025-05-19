@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, FormEvent } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { Car, PageProps } from '@/types';
-import { useForm } from '@inertiajs/react';
+import { PageProps } from '@/types';
+import { Car } from '@/types/models';
+import Pagination from '@/Components/Pagination';
+import SearchIcon from '@/Components/icons/SearchIcon';
+import FilterIcon from '@/Components/icons/FilterIcon';
+import SortIcon from '@/Components/icons/SortIcon';
+import NoDataIllustration from '@/Components/NoDataIllustration';
 
-interface CarsProps extends Record<string, unknown> {
+interface CarsProps extends PageProps {
   cars: {
     data: Car[];
     links: any[];
-    current_page: number;
-    last_page: number;
+    from: number;
+    to: number;
     total: number;
   };
   filters: {
@@ -18,385 +23,336 @@ interface CarsProps extends Record<string, unknown> {
     year?: string;
     min_price?: string;
     max_price?: string;
+    fuel_type?: string;
+    transmission?: string;
     search?: string;
+    sort?: string;
   };
   makes: string[];
-  models: string[];
   years: number[];
   priceRange: {
     min: number;
     max: number;
   };
+  fuelTypes: string[];
+  transmissions: string[];
 }
 
-type FilterKey = 'make' | 'model' | 'year' | 'min_price' | 'max_price' | 'search';
+type FilterKey = 'make' | 'model' | 'year' | 'min_price' | 'max_price' | 'fuel_type' | 'transmission' | 'search' | 'sort';
 
-export default function Index({
-  auth,
-  cars,
-  filters,
-  makes,
-  models,
-  years,
-  priceRange,
-}: PageProps<CarsProps>) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [availableModels, setAvailableModels] = useState<string[]>(models || []);
-
-  const form = useForm({
+export default function Index({ cars, filters, makes, years, priceRange, fuelTypes, transmissions }: CarsProps) {
+  const { auth } = usePage<PageProps>().props;
+  const [form, setForm] = useState({
     make: filters.make || '',
     model: filters.model || '',
     year: filters.year || '',
     min_price: filters.min_price || '',
     max_price: filters.max_price || '',
+    fuel_type: filters.fuel_type || '',
+    transmission: filters.transmission || '',
     search: filters.search || '',
+    sort: filters.sort || '',
   });
 
-  // Update available models when make changes
+  const [showFilters, setShowFilters] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+
   useEffect(() => {
-    if (form.data.make) {
+    // Update URL when form values change (debounced)
+    const handler = setTimeout(() => {
+      const params = new URLSearchParams();
+
+      Object.entries(form).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value);
+        }
+      });
+
+      router.get(route('cars.index'), Object.fromEntries(params), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+      });
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [form]);
+
+  // Fetch models when make changes
+  useEffect(() => {
+    if (form.make) {
       setIsLoading(true);
-      fetch(`/api/models?make=${form.data.make}`)
+      fetch(`/api/cars/models?make=${encodeURIComponent(form.make)}`)
         .then(response => response.json())
         .then(data => {
           setAvailableModels(data);
           setIsLoading(false);
         })
-        .catch(() => {
+        .catch(error => {
+          console.error('Error fetching models:', error);
           setIsLoading(false);
         });
     } else {
-      setAvailableModels(models || []);
+      setAvailableModels([]);
     }
-  }, [form.data.make]);
+  }, [form.make]);
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
-    form.setData(name as FilterKey, value);
-
-    // Clear model if make changes
-    if (name === 'make') {
-      form.setData('model', '');
+  const handleFilterChange = (key: FilterKey, value: string) => {
+    // Reset model if make is changed
+    if (key === 'make' && value !== form.make) {
+      setForm({ ...form, [key]: value, model: '' });
+    } else {
+      setForm({ ...form, [key]: value });
     }
-  };
-
-  const applyFilters = () => {
-    setIsLoading(true);
-    router.get('/cars', form.data, {
-      preserveState: true,
-      preserveScroll: true,
-      onSuccess: () => setIsLoading(false),
-      onError: () => setIsLoading(false),
-    });
   };
 
   const resetFilters = () => {
-    form.reset();
-    setIsLoading(true);
-    router.get('/cars', {}, {
+    setForm({
+      make: '',
+      model: '',
+      year: '',
+      min_price: '',
+      max_price: '',
+      fuel_type: '',
+      transmission: '',
+      search: '',
+      sort: '',
+    });
+  };
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+
+    router.get(route('cars.index'), form, {
       preserveState: true,
       preserveScroll: true,
-      onSuccess: () => setIsLoading(false),
-      onError: () => setIsLoading(false),
     });
   };
 
   return (
     <AppLayout>
-      <Head title="Browse Cars" />
-
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-primary to-secondary py-12 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Find Your Perfect Car</h1>
-          <p className="text-lg mb-0 max-w-3xl mx-auto">
-            Browse our extensive collection of quality vehicles with detailed specifications and transparent pricing.
-          </p>
-        </div>
-      </div>
+      <Head title="Cars" />
 
       <div className="py-12">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          {/* Search & Filter Section */}
-          <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Filter Cars</h2>
+          {/* Hero Section */}
+          <div className="bg-primary text-white rounded-lg shadow-lg overflow-hidden mb-8 py-12">
+            <div className="max-w-7xl mx-auto text-center px-4">
+              <h1 className="text-5xl font-bold mb-6">Find Your Perfect Used Car</h1>
+              <p className="text-2xl mb-10">Browse our selection of quality used cars at competitive prices</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* Make Filter */}
-              <div>
-                <label htmlFor="make" className="block text-sm font-medium text-gray-700 mb-1">
-                  Make
-                </label>
-                <select
-                  id="make"
-                  name="make"
-                  className="select select-bordered w-full"
-                  value={form.data.make}
-                  onChange={handleFilterChange}
-                  disabled={isLoading}
-                >
-                  <option value="">All Makes</option>
-                  {makes.map((make) => (
-                    <option key={make} value={make}>
-                      {make}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Model Filter */}
-              <div>
-                <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
-                  Model
-                </label>
-                <select
-                  id="model"
-                  name="model"
-                  className="select select-bordered w-full"
-                  value={form.data.model}
-                  onChange={handleFilterChange}
-                  disabled={isLoading || !form.data.make}
-                >
-                  <option value="">All Models</option>
-                  {availableModels.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Year Filter */}
-              <div>
-                <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-1">
-                  Year
-                </label>
-                <select
-                  id="year"
-                  name="year"
-                  className="select select-bordered w-full"
-                  value={form.data.year}
-                  onChange={handleFilterChange}
-                  disabled={isLoading}
-                >
-                  <option value="">All Years</option>
-                  {years.map((year) => (
-                    <option key={year} value={year.toString()}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Price Range Filter */}
-              <div>
-                <label htmlFor="min_price" className="block text-sm font-medium text-gray-700 mb-1">
-                  Min Price
-                </label>
-                <input
-                  type="number"
-                  id="min_price"
-                  name="min_price"
-                  className="input input-bordered w-full"
-                  placeholder="Min Price"
-                  value={form.data.min_price}
-                  onChange={handleFilterChange}
-                  min={priceRange.min}
-                  max={priceRange.max}
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="max_price" className="block text-sm font-medium text-gray-700 mb-1">
-                  Max Price
-                </label>
-                <input
-                  type="number"
-                  id="max_price"
-                  name="max_price"
-                  className="input input-bordered w-full"
-                  placeholder="Max Price"
-                  value={form.data.max_price}
-                  onChange={handleFilterChange}
-                  min={priceRange.min}
-                  max={priceRange.max}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {/* Search Input */}
-            <div className="mt-4">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                Search
-              </label>
-              <div className="flex gap-4">
-                <input
-                  type="text"
-                  id="search"
-                  name="search"
-                  className="input input-bordered flex-1"
-                  placeholder="Search by keywords..."
-                  value={form.data.search}
-                  onChange={handleFilterChange}
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={applyFilters}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="loading loading-spinner loading-sm"></span>
-                      Searching...
-                    </>
-                  ) : (
-                    'Search'
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={resetFilters}
-                  disabled={isLoading}
-                >
-                  Reset Filters
-                </button>
+              {/* Search Bar */}
+              <div className="max-w-3xl mx-auto mb-4">
+                <form onSubmit={handleSearch} className="flex">
+                  <input
+                    type="text"
+                    placeholder="Search by make, model, or keyword..."
+                    className="flex-1 p-3 rounded-l-lg text-gray-900"
+                    value={form.search}
+                    onChange={(e) => setForm({ ...form, search: e.target.value })}
+                  />
+                  <button
+                    type="submit"
+                    className="bg-secondary text-gray-900 px-6 py-3 rounded-r-lg font-medium hover:bg-opacity-90"
+                  >
+                    <SearchIcon className="h-5 w-5 inline-block mr-2" />
+                    Search
+                  </button>
+                </form>
               </div>
             </div>
           </div>
 
-          {/* Results Count */}
-          {cars.total > 0 && (
-            <div className="mb-6">
-              <p className="text-gray-600">
-                Showing {cars.data.length} of {cars.total} cars
-                {Object.values(filters).some(val => val) && ' matching your filters'}
-              </p>
-            </div>
-          )}
+          {/* Filters and Results */}
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Filters Sidebar */}
+            <div className="lg:w-1/4">
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Filters</h2>
+                  <button
+                    onClick={resetFilters}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Reset All
+                  </button>
+                </div>
 
-          {/* Car Listing */}
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="loading loading-spinner loading-lg"></div>
+                {/* Make Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Make</label>
+                  <select
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    value={form.make}
+                    onChange={(e) => handleFilterChange('make', e.target.value)}
+                  >
+                    <option value="">All Makes</option>
+                    {makes.map((make) => (
+                      <option key={make} value={make}>{make}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Model Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    placeholder="Enter model"
+                    value={form.model}
+                    onChange={(e) => handleFilterChange('model', e.target.value)}
+                  />
+                </div>
+
+                {/* Year Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                  <select
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    value={form.year}
+                    onChange={(e) => handleFilterChange('year', e.target.value)}
+                  >
+                    <option value="">All Years</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Price Range Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price Range</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      className="w-1/2 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                      placeholder="Min"
+                      value={form.min_price}
+                      onChange={(e) => handleFilterChange('min_price', e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      className="w-1/2 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                      placeholder="Max"
+                      value={form.max_price}
+                      onChange={(e) => handleFilterChange('max_price', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Fuel Type Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type</label>
+                  <select
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    value={form.fuel_type}
+                    onChange={(e) => handleFilterChange('fuel_type', e.target.value)}
+                  >
+                    <option value="">All Fuel Types</option>
+                    {fuelTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Transmission Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Transmission</label>
+                  <select
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    value={form.transmission}
+                    onChange={(e) => handleFilterChange('transmission', e.target.value)}
+                  >
+                    <option value="">All Transmissions</option>
+                    {transmissions.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-          ) : cars.data.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {cars.data.map((car) => (
-                  <div key={car.id} className="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300">
-                    <figure className="relative h-56">
-                      {car.media && car.media[0] ? (
+
+            {/* Results */}
+            <div className="lg:w-3/4">
+              {/* Sort Options */}
+              <div className="bg-white rounded-lg shadow p-4 mb-6 flex justify-between items-center">
+                <div>
+                  <span className="text-sm text-gray-500">
+                    Showing {cars.from} to {cars.to} of {cars.total} results
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <label className="text-sm text-gray-700 mr-2">Sort by:</label>
+                  <select
+                    className="rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    value={form.sort}
+                    onChange={(e) => handleFilterChange('sort', e.target.value)}
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="price_low">Price: Low to High</option>
+                    <option value="price_high">Price: High to Low</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Cars Grid */}
+              {cars.data.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {cars.data.map((car) => (
+                    <div key={car.id} className="bg-white rounded-lg shadow overflow-hidden">
+                      <div className="relative">
                         <img
-                          src={car.media[0].original_url}
+                          src={car.images && car.images.length > 0 && typeof car.images[0] === 'object' ? car.images[0].url : '/images/car-placeholder.jpg'}
                           alt={`${car.make} ${car.model}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/images/default-car.jpg';
-                          }}
+                          className="w-full h-48 object-cover"
                         />
-                      ) : (
-                        <img
-                          src="/images/default-car.jpg"
-                          alt={`${car.make} ${car.model}`}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                      <div className="absolute top-2 right-2">
-                        <span className="badge badge-primary">{car.registration_year}</span>
+                        <div className="absolute top-2 right-2 bg-primary text-white px-2 py-1 rounded text-sm">
+                          ${car.price.toLocaleString()}
+                        </div>
                       </div>
-                    </figure>
-                    <div className="card-body">
-                      <h2 className="card-title">
-                        {car.make} {car.model}
-                      </h2>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {car.transmission && (
-                          <span className="badge badge-outline">{car.transmission}</span>
-                        )}
-                        {car.fuel_type && (
-                          <span className="badge badge-outline">{car.fuel_type}</span>
-                        )}
-                        {car.body_type && (
-                          <span className="badge badge-outline">{car.body_type}</span>
-                        )}
-                      </div>
-                      <p className="text-2xl font-bold text-primary mt-2">
-                        ${car.price.toLocaleString()}
-                      </p>
-                      <div className="card-actions justify-end mt-4">
+                      <div className="p-4">
+                        <h3 className="text-lg font-semibold mb-1">{car.make} {car.model}</h3>
+                        <p className="text-gray-600 mb-2">{car.year}</p>
+                        <div className="flex justify-between text-sm text-gray-500 mb-4">
+                          <span>{car.mileage.toLocaleString()} miles</span>
+                          <span>{car.fuel_type}</span>
+                          <span>{car.transmission}</span>
+                        </div>
                         <Link
-                          href={route('cars.show', car.slug)}
-                          className="btn btn-primary"
+                          href={route('cars.show', car.id)}
+                          className="block w-full text-center bg-primary text-white py-2 rounded hover:bg-opacity-90"
                         >
                           View Details
                         </Link>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {cars.last_page > 1 && (
-                <div className="mt-8 flex justify-center">
-                  <div className="join">
-                    {cars.links.map((link, i) => {
-                      if (link.url === null) {
-                        return (
-                          <button key={i} className="join-item btn btn-disabled">
-                            <span dangerouslySetInnerHTML={{ __html: link.label.replace('&laquo;', '«').replace('&raquo;', '»') }} />
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <Link
-                          key={i}
-                          href={link.url}
-                          className={`join-item btn ${link.active ? 'btn-active' : ''}`}
-                        >
-                          <span dangerouslySetInnerHTML={{ __html: link.label.replace('&laquo;', '«').replace('&raquo;', '»') }} />
-                        </Link>
-                      );
-                    })}
-                  </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow p-8 text-center">
+                  <NoDataIllustration className="w-48 h-48 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No cars found</h3>
+                  <p className="text-gray-600 mb-4">Try adjusting your filters or search criteria</p>
+                  <button
+                    onClick={resetFilters}
+                    className="bg-primary text-white px-4 py-2 rounded hover:bg-opacity-90"
+                  >
+                    Reset Filters
+                  </button>
                 </div>
               )}
-            </>
-          ) : (
-            <div className="bg-white p-8 rounded-lg text-center">
-              <h3 className="text-lg font-medium text-gray-900">No cars found</h3>
-              <p className="mt-2 text-gray-500">
-                Try adjusting your filters or check back later for new listings.
-              </p>
-            </div>
-          )}
 
-          {/* Call-to-Action Section */}
-          {auth.user && (
-            <div className="mt-12 bg-gradient-to-r from-secondary to-primary text-white p-8 rounded-lg shadow-lg">
-              <div className="flex flex-col md:flex-row justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">Have a car to sell?</h3>
-                  <p className="mb-0 md:mb-0">
-                    List your car on ABC Cars and reach thousands of potential buyers.
-                  </p>
+              {/* Pagination */}
+              {cars.data.length > 0 && (
+                <div className="mt-8">
+                  <Pagination links={cars.links} />
                 </div>
-                <Link
-                  href={route('cars.create')}
-                  className="btn btn-secondary mt-4 md:mt-0"
-                >
-                  List Your Car
-                </Link>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </AppLayout>

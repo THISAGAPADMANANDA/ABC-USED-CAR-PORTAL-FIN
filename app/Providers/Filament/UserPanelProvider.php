@@ -2,9 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\User\Pages\Dashboard;
-use App\Filament\User\Pages\Profile;
-use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -27,24 +24,17 @@ class UserPanelProvider extends PanelProvider
     {
         return $panel
             ->id('user')
-            ->path('dashboard')
+            ->path('user')
             ->login()
             ->colors([
-                'primary' => Color::Teal,
-                'gray' => Color::Slate,
-                'danger' => Color::Rose,
-                'info' => Color::Blue,
-                'success' => Color::Emerald,
-                'warning' => Color::Orange,
+                'primary' => Color::Blue,
             ])
-            ->brandName('My Car Dashboard')
-            ->brandLogo(asset('images/logo.png'))
+            ->brandName('ABC Cars User Portal')
             ->favicon(asset('images/favicon.ico'))
             ->discoverResources(in: app_path('Filament/User/Resources'), for: 'App\\Filament\\User\\Resources')
             ->discoverPages(in: app_path('Filament/User/Pages'), for: 'App\\Filament\\User\\Pages')
             ->pages([
                 Pages\Dashboard::class,
-                Profile::class,
             ])
             ->discoverWidgets(in: app_path('Filament/User/Widgets'), for: 'App\\Filament\\User\\Widgets')
             ->widgets([
@@ -63,18 +53,16 @@ class UserPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                'role:user',
             ])
             ->authGuard('web')
-            ->registration()
             ->passwordReset()
-            ->profile()
-            ->databaseNotifications()
-            ->databaseNotificationsPolling('30s')
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->navigationGroups([
+                'Dashboard',
                 'My Cars',
                 'Bids & Appointments',
                 'Transactions',
-                'Account',
             ]);
     }
 }

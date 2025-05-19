@@ -14,14 +14,14 @@ interface NavigationItem {
 interface UserNavigationItem {
   name: string;
   href: string;
-  method?: string;
+  method?: 'get' | 'post' | 'put' | 'patch' | 'delete';
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { auth } = usePage<PageProps>().props;
-  const userIsBanned = auth.isBanned;
+  const userIsBanned = auth.user?.isBanned ?? false;
 
-  const isAdmin = auth.user?.roles.some(role => role.name === 'admin');
+  const isAdmin = auth?.user?.roles?.some(role => role.name === 'admin') ?? false;
 
   // Navigation for all users (authenticated and unauthenticated)
   const publicNavigation: NavigationItem[] = [
@@ -114,7 +114,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                   {({ active }) => (
                                     <Link
                                       href={item.href}
-                                      method={item.method}
+                                      method={item.method as 'get' | 'post' | 'put' | 'patch' | 'delete'}
                                       as={item.method ? 'button' : undefined}
                                       className={classNames(
                                         active ? 'bg-gray-100' : '',
@@ -132,7 +132,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                   {({ active }) => (
                                     <Link
                                       href={item.href}
-                                      method={item.method}
+                                      method={item.method as 'get' | 'post' | 'put' | 'patch' | 'delete'}
                                       as={item.method ? 'button' : undefined}
                                       className={classNames(
                                         active ? 'bg-gray-100' : '',
@@ -220,7 +220,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             key={item.name}
                             as={Link}
                             href={item.href}
-                            method={item.method}
+                            method={item.method as 'get' | 'post' | 'put' | 'patch' | 'delete'}
                             className="block rounded-md px-3 py-2 text-base font-medium text-white hover:bg-primary-focus"
                           >
                             {item.name}
@@ -232,7 +232,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             key={item.name}
                             as={Link}
                             href={item.href}
-                            method={item.method}
+                            method={item.method as 'get' | 'post' | 'put' | 'patch' | 'delete'}
                             className="block rounded-md px-3 py-2 text-base font-medium text-white hover:bg-primary-focus"
                           >
                             {item.name}
@@ -296,7 +296,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div>
               <h3 className="text-lg font-semibold mb-4">Contact</h3>
               <p className="text-sm">123 Car Street, Singapore</p>
-              <p className="text-sm">Phone: +65 1234 5678</p>
+              <p className="text-sm">phone_number: +65 1234 5678</p>
               <p className="text-sm">Email: info@abccars.com</p>
             </div>
           </div>

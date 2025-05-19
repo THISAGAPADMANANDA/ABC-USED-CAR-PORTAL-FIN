@@ -35,7 +35,7 @@ export default function Contact({ flash }) {
   const { data, setData, post, processing, errors, reset } = useForm({
     name: '',
     email: '',
-    phone: '',
+    phone_number: '',
     subject: '',
     message: ''
   });
@@ -119,17 +119,17 @@ export default function Contact({ flash }) {
                 <InputError message={errors.email} className="mt-2" />
               </div>
 
-              {/* Phone */}
+              {/* phone_number */}
               <div>
-                <InputLabel htmlFor="phone" value="Phone Number" className="text-gray-700" />
+                <InputLabel htmlFor="phone_number" value="Phone Number" className="text-gray-700" />
                 <TextInput
-                  id="phone"
-                  name="phone"
-                  value={data.phone}
+                  id="phone_number"
+                  name="phone_number"
+                  value={data.phone_number}
                   className="input input-bordered mt-1 block w-full"
                   onChange={handleChange}
                 />
-                <InputError message={errors.phone} className="mt-2" />
+                <InputError message={errors.phone_number} className="mt-2" />
               </div>
 
               {/* Subject */}
@@ -189,7 +189,7 @@ export default function Contact({ flash }) {
                 123 Car Avenue, Singapore 123456
               </li>
               <li>
-                <span className="font-bold block">Phone:</span>
+                <span className="font-bold block">phone_number:</span>
                 +65 6123 4567
               </li>
               <li>
