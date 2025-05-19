@@ -28,7 +28,7 @@ class Profile extends Page
         $this->form->fill([
             'name' => $user->name,
             'email' => $user->email,
-            'phone' => $user->phone,
+            'phone_number' => $user->phone_number,
             'profile_photo' => $user->profile_photo,
         ]);
     }
@@ -44,7 +44,7 @@ class Profile extends Page
                     ->email()
                     ->required()
                     ->maxLength(255),
-                TextInput::make('phone')
+                TextInput::make('phone_number')
                     ->tel()
                     ->maxLength(20),
                 FileUpload::make('profile_photo')
@@ -88,7 +88,7 @@ class Profile extends Page
 
         $user->name = $data['name'];
         $user->email = $data['email'];
-        $user->phone = $data['phone'];
+        $user->phone_number = $data['phone_number'];
 
         if (isset($data['profile_photo'])) {
             $user->profile_photo = $data['profile_photo'];

@@ -296,7 +296,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div>
               <h3 className="text-lg font-semibold mb-4">Contact</h3>
               <p className="text-sm">123 Car Street, Singapore</p>
-              <p className="text-sm">Phone: +65 1234 5678</p>
+              <p className="text-sm">phone_number: +65 1234 5678</p>
               <p className="text-sm">Email: info@abccars.com</p>
             </div>
           </div>
